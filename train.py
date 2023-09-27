@@ -329,5 +329,7 @@ while True:
     if iter_num > max_iters:
         break
 
+print(torch.cuda.memory_summary())
+
 if ddp:
     destroy_process_group()

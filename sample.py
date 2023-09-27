@@ -87,3 +87,5 @@ with torch.no_grad():
             y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k)
             print(decode(y[0].tolist()))
             print('---------------')
+
+print(torch.cuda.memory_summary())
