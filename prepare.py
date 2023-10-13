@@ -4,13 +4,13 @@ import numpy as np
 import pandas as pd
 
 datasets = {'fairytales': 'text'}
-name = ""
+dataset = ""
 
-df = pd.read_csv(f'datasets/{name}.csv')
+df = pd.read_csv(f'datasets/{dataset}.csv')
 print(df.columns)
 print(df.head())
 
-title = datasets[name]
+title = datasets[dataset]
 data = df[title].str.cat(sep='\n')
 
 n = len(data)
