@@ -6,7 +6,7 @@ import pandas as pd
 datasets = {'fairytales': 'text'}
 name = ""
 
-df = pd.read_csv('datasets/{name}.csv')
+df = pd.read_csv(f'datasets/{name}.csv')
 print(df.columns)
 print(df.head())
 
