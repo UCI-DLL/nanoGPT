@@ -4,7 +4,11 @@ import numpy as np
 import pandas as pd
 
 datasets = {'fairytales': 'text'}
+# ----------
 dataset = ""
+# ----------
+config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
+exec(open('configurator.py').read()) # overrides from command line or config file
 
 df = pd.read_csv(f'datasets/{dataset}.csv')
 print(df.columns)
