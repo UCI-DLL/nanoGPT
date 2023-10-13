@@ -3,7 +3,7 @@ import tiktoken
 import numpy as np
 import pandas as pd
 
-datasets = {'fairytales': 'text'}
+datasets = {'fairytales': 'Text'}
 # ----------
 dataset = ""
 # ----------
