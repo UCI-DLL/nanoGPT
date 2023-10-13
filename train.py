@@ -113,8 +113,8 @@ ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=
 
 # poor man's data loader
 
-train_data = np.memmap(os.path.join('data', 'train.bin'), dtype=np.uint16, mode='r')
-val_data = np.memmap(os.path.join('data', 'val.bin'), dtype=np.uint16, mode='r')
+train_data = np.memmap('train.bin', dtype=np.uint16, mode='r')
+val_data = np.memmap('val.bin', dtype=np.uint16, mode='r')
 def get_batch(split):
     data = train_data if split == 'train' else val_data
     ix = torch.randint(len(data) - block_size, (batch_size,))
