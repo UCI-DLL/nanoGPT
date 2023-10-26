@@ -37,6 +37,7 @@ if init_from == 'resume':
     ckpt_path = os.path.join(out_dir, 'ckpt.pt')
     checkpoint = torch.load(ckpt_path, map_location=device)
 
+    block_size = 1024
     n_layer = 12
     n_head = 12
     n_embd = 768
