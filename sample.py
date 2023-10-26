@@ -46,18 +46,22 @@ if init_from == 'resume':
 
 
     model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
-                  bias=bias, vocab_size=None, dropout=dropout)
-    gptconf = GPTConfig(**model_args)
-    model = GPT(gptconf)
+                  bias=bias, vocab_size=None, dropout=dropout) # start with model_args from command line
+    override_args = dict(dropout=dropout)
+    model = GPT.from_pretrained(init_from, override_args)
+    # read off the created config params, so we can store them into checkpoint correctly
+    for k in ['n_layer', 'n_head', 'n_embd', 'block_size', 'bias', 'vocab_size']:
+        model_args[k] = getattr(model.config, k)
+
     state_dict = checkpoint['model']
     unwanted_prefix = '_orig_mod.'
     for k,v in list(state_dict.items()):
         if k.startswith(unwanted_prefix):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
     model.load_state_dict(state_dict)
-elif init_from.startswith('gpt2'):
-    # init from a given GPT-2 model
-    model = GPT.from_pretrained(init_from, dict(dropout=0.0))
+# elif init_from.startswith('gpt2'):
+#     # init from a given GPT-2 model
+#     model = GPT.from_pretrained(init_from, dict(dropout=0.0))
 
 model.eval()
 model.to(device)
