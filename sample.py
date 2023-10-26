@@ -36,7 +36,17 @@ if init_from == 'resume':
     # init from a model saved in a specific directory
     ckpt_path = os.path.join(out_dir, 'ckpt.pt')
     checkpoint = torch.load(ckpt_path, map_location=device)
-    gptconf = GPTConfig(**checkpoint['model_args'])
+
+    n_layer = 12
+    n_head = 12
+    n_embd = 768
+    dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
+    bias = False # do we use bias inside LayerNorm and Linear layers?
+
+
+    model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
+                  bias=bias, vocab_size=None, dropout=dropout)
+    gptconf = GPTConfig(model_args)
     model = GPT(gptconf)
     state_dict = checkpoint['model']
     unwanted_prefix = '_orig_mod.'
