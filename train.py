@@ -272,7 +272,7 @@ while True:
             best_val_loss = losses['val']
             if iter_num > 0:
                 checkpoint = {
-                    # 'model': raw_model.state_dict(),
+                    'model': raw_model.state_dict(),
                     # 'optimizer': optimizer.state_dict(),
                     'model_args': model_args,
                     # 'iter_num': iter_num,
