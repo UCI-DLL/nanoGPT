@@ -279,17 +279,9 @@ while True:
                     # 'best_val_loss': best_val_loss,
                     # 'config': config,
                 }
-                checkpoint2 = {
-                    'model': raw_model.state_dict(),
-                    # 'optimizer': optimizer.state_dict(),
-                    'model_args': model_args,
-                    # 'iter_num': iter_num,
-                    # 'best_val_loss': best_val_loss,
-                    # 'config': config,
-                }
-                print(f"saving checkpoint1 to {out_dir}")
-                torch.save(checkpoint1, os.path.join(out_dir, 'ckpt1.pt'))
-                torch.save(checkpoint2, os.path.join(out_dir, 'ckpt2.pt'))
+                print(f"saving checkpoint to {out_dir}")
+                torch.save(raw_model.state_dict(), os.path.join(out_dir, 'ckpt1.pt'))
+                torch.save(model_args, os.path.join(out_dir, 'ckpt2.pt'))
 
     if iter_num == 0 and eval_only:
         break
