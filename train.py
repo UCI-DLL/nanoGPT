@@ -282,7 +282,7 @@ while True:
                 }
                 print(checkpoint1['model'])
                 print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint1, os.path.join(out_dir, 'ckpt.pt'))
+                torch.save(raw_model.state_dict(), os.path.join(out_dir, 'ckpt.pt'))
                 # torch.save(model_args, os.path.join(out_dir, 'ckpt2.pt'))
 
     if iter_num == 0 and eval_only:
