@@ -281,7 +281,7 @@ while True:
                 }
                 print(f"saving checkpoint to {out_dir}")
                 torch.save(raw_model.state_dict(), os.path.join(out_dir, 'ckpt1.pt'))
-                torch.save(model_args, os.path.join(out_dir, 'ckpt2.pt'))
+                # torch.save(model_args, os.path.join(out_dir, 'ckpt2.pt'))
 
     if iter_num == 0 and eval_only:
         break
