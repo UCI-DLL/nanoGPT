@@ -273,12 +273,14 @@ while True:
             if iter_num > 0:
                 checkpoint1 = {
                     'model': raw_model.state_dict(),
+                
                     # 'optimizer': optimizer.state_dict(),
                     # 'model_args': model_args,
                     # 'iter_num': iter_num,
                     # 'best_val_loss': best_val_loss,
                     # 'config': config,
                 }
+                print(checkpoint1['model'])
                 print(f"saving checkpoint to {out_dir}")
                 torch.save(checkpoint1, os.path.join(out_dir, 'ckpt.pt'))
                 # torch.save(model_args, os.path.join(out_dir, 'ckpt2.pt'))
