@@ -280,9 +280,10 @@ while True:
                     # 'best_val_loss': best_val_loss,
                     # 'config': config,
                 }
+                
 
                 print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
+                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.tar.gz'), _use_new_zipfile_serialization=False)
                 # torch.save(model_args, os.path.join(out_dir, 'ckpt2.pt'))
 
     if iter_num == 0 and eval_only:
