@@ -112,9 +112,9 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-data_dir = os.path.join('datasets', dataset)
-train_data = np.memmap('train.bin', dtype=np.uint16, mode='r')
-val_data = np.memmap('val.bin', dtype=np.uint16, mode='r')
+data_dir = os.path.join('data', dataset)
+train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
 def get_batch(split):
     data = train_data if split == 'train' else val_data
     ix = torch.randint(len(data) - block_size, (batch_size,))
@@ -259,6 +259,7 @@ while True:
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
         losses = estimate_loss()
+
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
             wandb.log({
@@ -273,19 +274,15 @@ while True:
             if iter_num > 0:
                 checkpoint = {
                     'model': raw_model.state_dict(),
-                
-                    # 'optimizer': optimizer.state_dict(),
+                    'optimizer': optimizer.state_dict(),
                     'model_args': model_args,
-                    # 'iter_num': iter_num,
-                    # 'best_val_loss': best_val_loss,
-                    # 'config': config,
+                    'iter_num': iter_num,
+                    'best_val_loss': best_val_loss,
+                    'config': config
+
                 }
-                
-
                 print(f"saving checkpoint to {out_dir}")
-                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.tar.gz'), _use_new_zipfile_serialization=False)
-                # torch.save(model_args, os.path.join(out_dir, 'ckpt2.pt'))
-
+                torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
     if iter_num == 0 and eval_only:
         break
 
@@ -333,8 +330,6 @@ while True:
     # termination conditions
     if iter_num > max_iters:
         break
-
-print(torch.cuda.memory_summary())
 
 if ddp:
     destroy_process_group()
