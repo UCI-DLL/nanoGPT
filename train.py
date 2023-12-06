@@ -112,8 +112,9 @@ ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torc
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
 
 # poor man's data loader
-train_data = np.memmap('train.bin', dtype=np.uint16, mode='r')
-val_data = np.memmap('val.bin', dtype=np.uint16, mode='r')
+data_dir = os.path.join('data', dataset)
+train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
+val_data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
 def get_batch(split):
     data = train_data if split == 'train' else val_data
     ix = torch.randint(len(data) - block_size, (batch_size,))
@@ -131,7 +132,7 @@ iter_num = 0
 best_val_loss = 1e9
 
 # attempt to derive vocab_size from the dataset
-meta_path = 'meta.pkl'
+meta_path = os.path.join(data_dir, 'meta.pkl')
 meta_vocab_size = None
 if os.path.exists(meta_path):
     with open(meta_path, 'rb') as f:
@@ -247,6 +248,7 @@ X, Y = get_batch('train') # fetch the very first batch
 t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
+original_state_dict = raw_model.state_dict()
 running_mfu = -1.0
 while True:
 
@@ -284,6 +286,27 @@ while True:
                 torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
     if iter_num == 0 and eval_only:
         break
+
+    def count_changed_parameters(original_state_dict, fine_tuned_state_dict):
+        changed_params = 0
+        total_params = 0
+
+        for key, original_param in original_state_dict.items():
+            fine_tuned_param = fine_tuned_state_dict[key]
+
+            if not torch.equal(original_param, fine_tuned_param):
+                changed_params += 1
+
+            total_params += 1
+
+        return changed_params, total_params
+    fine_tuned_state_dict = raw_model.state_dict()
+
+    changed_params, total_params = count_changed_parameters(original_state_dict, fine_tuned_state_dict)
+
+    # Print the results
+    print(f"Total parameters: {total_params}")
+    print(f"Changed parameters: {changed_params}")
 
     # forward backward update, with optional gradient accumulation to simulate larger batch size
     # and using the GradScaler if data type is float16
