@@ -288,26 +288,7 @@ while True:
     if iter_num == 0 and eval_only:
         break
 
-    def count_changed_parameters(original_state_dict, fine_tuned_state_dict):
-        changed_params = 0
-        total_params = 0
-
-        for key, original_param in original_state_dict.items():
-            fine_tuned_param = fine_tuned_state_dict[key]
-
-            if not torch.equal(original_param, fine_tuned_param):
-                changed_params += 1
-
-            total_params += 1
-
-        return changed_params, total_params
-    fine_tuned_state_dict = raw_model.state_dict()
-
-    changed_params, total_params = count_changed_parameters(original_state_dict, fine_tuned_state_dict)
-
-    # Print the results
-    print(f"Total parameters: {total_params}")
-    print(f"Changed parameters: {changed_params}")
+    
 
     # forward backward update, with optional gradient accumulation to simulate larger batch size
     # and using the GradScaler if data type is float16
@@ -353,6 +334,25 @@ while True:
     # termination conditions
     if iter_num > max_iters:
         break
+def count_changed_parameters(original_state_dict, fine_tuned_state_dict):
+        changed_params = 0
+        total_params = 0
 
+        for key, original_param in original_state_dict.items():
+            fine_tuned_param = fine_tuned_state_dict[key]
+
+            if not torch.equal(original_param, fine_tuned_param):
+                changed_params += 1
+
+            total_params += 1
+
+        return changed_params, total_params
+fine_tuned_state_dict = raw_model.state_dict()
+
+changed_params, total_params = count_changed_parameters(original_state_dict, fine_tuned_state_dict)
+
+    # Print the results
+print(f"Total parameters: {total_params}")
+print(f"Changed parameters: {changed_params}")
 if ddp:
     destroy_process_group()
