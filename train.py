@@ -334,22 +334,22 @@ while True:
     # termination conditions
     if iter_num > max_iters:
         break
-def count_changed_parameters(original_state_dict, fine_tuned_state_dict):
-        changed_params = 0
-        total_params = 0
+def compare_models(original_model_state_dict,fine_tuned_state_dict ):
+        models_differ = 0
+        for key_item_1, key_item_2 in zip(original_model_state_dict.items(), fine_tuned_state_dict.items()):
+            if torch.equal(key_item_1[1], key_item_2[1]):
+                pass
+            else:
+                models_differ += 1
+                if (key_item_1[0] == key_item_2[0]):
+                    print('Mismtach found at', key_item_1[0])
+                else:
+                    raise Exception
+        if models_differ == 0:
+            print('Models match perfectly! :)')
 
-        for key, original_param in original_state_dict.items():
-            fine_tuned_param = fine_tuned_state_dict[key]
-
-            if not torch.equal(original_param, fine_tuned_param):
-                changed_params += 1
-
-            total_params += 1
-
-        return changed_params, total_params
 fine_tuned_state_dict = raw_model.state_dict()
-
-changed_params, total_params = count_changed_parameters(original_state_dict, fine_tuned_state_dict)
+compare_models(original_state_dict, fine_tuned_state_dict)
 
     # Print the results
 print(f"Total parameters: {total_params}")
