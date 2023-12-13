@@ -1,3 +1,3 @@
 import torch
-import torch_xla
-import torch_xla.core.xla_model as xm
+import torch_neuron
+import torch_xla.xla_model as xm
