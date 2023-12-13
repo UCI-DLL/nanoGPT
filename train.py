@@ -28,8 +28,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
 import torch_xla.core.xla_model as xm
-os.environ["NEURON_CC_FLAGS"] = "--auto-cast=none"
-torch.cuda.is_bf16_supported = lambda: True
+# os.environ["NEURON_CC_FLAGS"] = "--auto-cast=none"
+# torch.cuda.is_bf16_supported = lambda: True
 
 
 from model import GPTConfig, GPT
@@ -111,7 +111,7 @@ if master_process:
 torch.manual_seed(1337 + seed_offset)
 torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
 torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
-device_type = 'cuda'  # for later use in torch.autocast
+device_type = 'cpu'  # for later use in torch.autocast
 # note: float16 data type will automatically use a GradScaler
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
 ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=device_type, dtype=ptdtype)
