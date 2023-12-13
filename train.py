@@ -8,7 +8,6 @@ from contextlib import nullcontext
 import numpy as np
 import torch
 import torch_neuron
-import torch_xla.core.xla_model as xm
 
 
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -56,7 +55,7 @@ min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchi
 # DDP settings
 backend = 'nccl' # 'nccl', 'gloo', etc.
 # system
-device = xm.xla_device()
+device = torch_xla.core.xla_model.xla_device()
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True # use PyTorch 2.0 to compile the model to be faster
 # -----------------------------------------------------------------------------
@@ -239,7 +238,7 @@ while True:
                 }
                 print(f"saving checkpoint to {out_dir}")
                 torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
-        xm.mark_step()
+        torch_xla.core.xla_model.mark_step()
     if iter_num == 0 and eval_only:
         break
 
