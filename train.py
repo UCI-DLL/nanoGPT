@@ -8,6 +8,8 @@ from contextlib import nullcontext
 import numpy as np
 import torch
 import torch_xla.core.xla_model as xm
+os.environ["NEURON_CC_FLAGS"] = "--auto-cast=none"
+
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
@@ -143,7 +145,7 @@ if block_size < model.config.block_size:
 model.to(device)
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
-# scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
 # optimizer
 optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
@@ -264,8 +266,8 @@ while True:
     xm.mark_step()
 
     # step the optimizer and scaler if training in fp16
-    # scaler.step(optimizer)
-    # scaler.update()
+    scaler.step(optimizer)
+    scaler.update()
     # flush the gradients as soon as we can, no need for this memory anymore
     optimizer.zero_grad(set_to_none=True)
 
@@ -273,14 +275,16 @@ while True:
     t1 = time.time()
     dt = t1 - t0
     t0 = t1
-    if iter_num % log_interval == 0 and master_process:
-        # get loss as float. note: this is a CPU-GPU sync point
-        # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
-        lossf = loss.item() * gradient_accumulation_steps
-        if local_iter_num >= 5: # let the training loop settle a bit
-            mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
-            running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
-        print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%")
+    torch.cuda.is_bf16_supported = lambda: True
+    with torch.autocast(dtype=torch.bfloat16, device_type='cuda'):
+        if iter_num % log_interval == 0 and master_process:
+            # get loss as float. note: this is a CPU-GPU sync point
+            # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
+            lossf = loss.item() * gradient_accumulation_steps
+            if local_iter_num >= 5: # let the training loop settle a bit
+                mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
+                running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
+            print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%")
     iter_num += 1
     local_iter_num += 1
 
