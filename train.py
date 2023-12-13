@@ -237,7 +237,6 @@ while True:
                 }
                 print(f"saving checkpoint to {out_dir}")
                 torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
-        xm.mark_step()
     if iter_num == 0 and eval_only:
         break
 
@@ -262,6 +261,8 @@ while True:
     if grad_clip != 0.0:
         # scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+    xm.mark_step()
+
     # step the optimizer and scaler if training in fp16
     # scaler.step(optimizer)
     # scaler.update()
