@@ -257,7 +257,7 @@ original_state_dict = raw_model.state_dict()
 
 running_mfu = -1.0
 while True:
-
+    
     # determine and set the learning rate for this iteration
     lr = get_lr(iter_num) if decay_lr else learning_rate
     for param_group in optimizer.param_groups:
@@ -317,7 +317,7 @@ while True:
     #     torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
     # step the optimizer and scaler if training in fp16
     xm.mark_step()
-    # scaler.step(optimizer)
+    optimizer.step()
     # scaler.update()
     # flush the gradients as soon as we can, no need for this memory anymore
     optimizer.zero_grad(set_to_none=True)
