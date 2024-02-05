@@ -1,72 +1,55 @@
-
+import os
 import time
-
-import numpy as np
 import torch
-import torch.neuron
-from joblib import Parallel, delayed
-from tqdm import tqdm
-from transformers import AutoTokenizer
+import torch_neuron
+import json
+import numpy as np
 
-# Sample inputs
-positive_example = "This is a really great restaurant, I loved it"
-negative_example = "I've never eaten so bad in my life"
+from urllib import request
 
-# Build tokenizer
-tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
+from torchvision import models, transforms, datasets
 
-# Convert sample inputs to a format that is compatible with TorchScript tracing
-positive = tokenizer(positive_example, return_tensors="pt")
-negative = tokenizer(negative_example, return_tensors="pt")
-positive_input = (
-    positive["input_ids"],
-    positive["attention_mask"],
-    positive["token_type_ids"],
-)
-negative_input = (
-    negative["input_ids"],
-    negative["attention_mask"],
-    negative["token_type_ids"],
-)
-
-# Load model
-neuron_model = torch.jit.load("bert_yelp_neuron.pt")
-
-# Predict samples
-positive_logits = neuron_model(*positive_input)
-negative_logits = neuron_model(*negative_input)
-
-positive_logits = positive_logits["logits"].cpu().detach().numpy()
-negative_logits = negative_logits["logits"].cpu().detach().numpy()
-
-print(positive_logits)
-print(negative_logits)
-
-classes = ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"]
-positive_prediction = positive_logits[0].argmax()
-negative_prediction = negative_logits[0].argmax()
-print('Neuron BERT says that "{}" is {}'.format(positive_example, classes[positive_prediction]))
-print('Neuron BERT says that "{}" is {}'.format(negative_example, classes[negative_prediction]))
+## Create an image directory containing a small kitten
+os.makedirs("./torch_neuron_test/images", exist_ok=True)
+request.urlretrieve("https://raw.githubusercontent.com/awslabs/mxnet-model-server/master/docs/images/kitten_small.jpg",
+                    "./torch_neuron_test/images/kitten_small.jpg")
 
 
-def inference_latency(model, *inputs):
-    start = time.time()
-    _ = model(*inputs)
-    return time.time() - start
+## Fetch labels to output the top classifications
+request.urlretrieve("https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json","imagenet_class_index.json")
+idx2label = []
 
-num_iterations = 100000
-num_threads = 16
+with open("imagenet_class_index.json", "r") as read_file:
+    class_idx = json.load(read_file)
+    idx2label = [class_idx[str(k)][1] for k in range(len(class_idx))]
 
-t = tqdm(range(num_iterations), position=0, leave=True)
-latency = Parallel(n_jobs=num_threads, prefer="threads")(
-    delayed(inference_latency)(neuron_model, *positive_input) for i in t
+## Import a sample image and normalize it into a tensor
+normalize = transforms.Normalize(
+    mean=[0.485, 0.456, 0.406],
+    std=[0.229, 0.224, 0.225])
+
+eval_dataset = datasets.ImageFolder(
+    os.path.dirname("./torch_neuron_test/"),
+    transforms.Compose([
+    transforms.Resize([224, 224]),
+    transforms.ToTensor(),
+    normalize,
+    ])
 )
 
-p50 = np.quantile(latency, 0.50) * 1000
-p95 = np.quantile(latency, 0.95) * 1000
-p99 = np.quantile(latency, 0.99) * 1000
-avg_throughput = t.total / t.format_dict["elapsed"]
-print(f"Avg Throughput: :{avg_throughput:.1f}")
-print(f"50th Percentile Latency:{p50:.1f} ms")
-print(f"95th Percentile Latency:{p95:.1f} ms")
-print(f"99th Percentile Latency:{p99:.1f} ms")
+image, _ = eval_dataset[0]
+image = torch.tensor(image.numpy()[np.newaxis, ...])
+
+## Load model
+model_neuron = torch.jit.load( 'resnet50_neuron.pt' )
+
+## Predict
+results = model_neuron( image )
+
+# Get the top 5 results
+top5_idx = results[0].sort()[1][-5:]
+
+# Lookup and print the top 5 labels
+top5_labels = [idx2label[idx] for idx in top5_idx]
+
+print("Top 5 labels:\n {}".format(top5_labels) )
