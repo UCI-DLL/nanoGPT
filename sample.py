@@ -1,66 +1,105 @@
+import os
+
+import torch_xla.core.xla_model as xm
+from datasets import load_dataset
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+device = "xla"
+
+dataset = load_dataset("yelp_review_full")
+
+tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
+
+
+def tokenize_function(examples):
+    return tokenizer(examples["text"], padding="max_length", truncation=True)
+
+
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+tokenized_datasets = tokenized_datasets.remove_columns(["text"])
+tokenized_datasets = tokenized_datasets.rename_column("label", "labels")
+tokenized_datasets.set_format("torch")
+
+small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(10000))
+small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(10000))
+
+train_dataloader = DataLoader(small_train_dataset, shuffle=True, batch_size=8)
+eval_dataloader = DataLoader(small_eval_dataset, batch_size=8)
+
+model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=5)
+model.to(device)
+
+optimizer = AdamW(model.parameters(), lr=5e-5)
+
+num_epochs = 3
+num_training_steps = num_epochs * len(train_dataloader)
+progress_bar = tqdm(range(num_training_steps))
+
+model.train()
+
+
+os.makedirs("checkpoints", exist_ok=True)
+checkpoint = {"state_dict": model.state_dict()}
+xm.save(checkpoint, "checkpoints/checkpoint.pt")
+
+
 import torch
 import torch.neuron
-from transformers import AutoTokenizer
+from transformers import AutoConfig, AutoTokenizer, BertForSequenceClassification
 
-# Setup some example inputs
-sequence_0 = "The company HuggingFace is based in New York City"
-sequence_1 = "Apples are especially bad for your health"
-sequence_2 = "HuggingFace's headquarters are situated in Manhattan"
+model_id = "bert-base-cased"
 
-tokenizer = AutoTokenizer.from_pretrained("bert-base-cased-finetuned-mrpc")
+# Build tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-max_length = 128
-paraphrase = tokenizer.encode_plus(
-    sequence_0,
-    sequence_2,
-    max_length=max_length,
-    padding="max_length",
-    truncation=True,
-    return_tensors="pt",
+config = AutoConfig.from_pretrained(model_id)
+config.num_labels = 5
+model = BertForSequenceClassification(config=config)
+
+checkpoint = torch.load("./model.pt")
+model.load_state_dict(checkpoint["state_dict"])
+
+# Sample inputs
+positive_example = "This is a really great restaurant, I loved it"
+negative_example = "I've never eaten so bad in my life"
+
+positive = tokenizer(positive_example, return_tensors="pt")
+negative = tokenizer(negative_example, return_tensors="pt")
+
+# Convert sample inputs to a format that is compatible with TorchScript tracing:
+# Only Tensors and (possibly nested) Lists, Dicts, and Tuples of Tensors can be traced
+positive_input = (
+    positive["input_ids"],
+    positive["attention_mask"],
+    positive["token_type_ids"],
 )
-not_paraphrase = tokenizer.encode_plus(
-    sequence_0,
-    sequence_1,
-    max_length=max_length,
-    padding="max_length",
-    truncation=True,
-    return_tensors="pt",
-)
-
-# Load TorchScript back
-neuron_model = torch.jit.load("bert_neuron.pt")
-
-# Convert example inputs to a format that is compatible with TorchScript tracing
-example_inputs_paraphrase = (
-    paraphrase["input_ids"],
-    paraphrase["attention_mask"],
-    paraphrase["token_type_ids"],
-)
-example_inputs_not_paraphrase = (
-    not_paraphrase["input_ids"],
-    not_paraphrase["attention_mask"],
-    not_paraphrase["token_type_ids"],
+negative_input = (
+    negative["input_ids"],
+    negative["attention_mask"],
+    negative["token_type_ids"],
 )
 
-# Warmup
-y = neuron_model(*example_inputs_paraphrase)
+# Predict sample inputs
+positive_logits = model(*positive_input)
+negative_logits = model(*negative_input)
+print(positive_logits)
+print(negative_logits)
 
-# Verify the TorchScript works on both example inputs
-paraphrase_classification_logits_neuron = neuron_model(*example_inputs_paraphrase)
-not_paraphrase_classification_logits_neuron = neuron_model(*example_inputs_not_paraphrase)
-print(paraphrase_classification_logits_neuron)
-print(not_paraphrase_classification_logits_neuron)
+classes = ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"]
+positive_prediction = positive_logits[0][0].argmax()
+negative_prediction = negative_logits[0][0].argmax()
+print('Original model says that "{}" is {}'.format(positive_example, classes[positive_prediction]))
+print('Original model says that "{}" is {}'.format(negative_example, classes[negative_prediction]))
 
-classes = ["not paraphrase", "paraphrase"]
-paraphrase_prediction = paraphrase_classification_logits_neuron[0][0].argmax().item()
-not_paraphrase_prediction = not_paraphrase_classification_logits_neuron[0][0].argmax().item()
-print(
-    'Neuron BERT says that "{}" and "{}" are {}'.format(
-        sequence_0, sequence_2, classes[paraphrase_prediction]
-    )
+# Convert model with Neuron
+num_neuron_cores = 16  # for inf1.6xlarge
+neuron_model = torch.neuron.trace(
+    model,
+    positive_input,
+    strict=False,
+    compiler_args=["--neuroncore-pipeline-cores", str(num_neuron_cores)],
 )
-print(
-    'Neuron BERT says that "{}" and "{}" are {}'.format(
-        sequence_0, sequence_1, classes[not_paraphrase_prediction]
-    )
-)
+neuron_model.save("bert_yelp_neuron.pt")
