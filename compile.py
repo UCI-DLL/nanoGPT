@@ -4,6 +4,7 @@ import os
 import torch_neuron
 from torchvision import models
 from model import GPTConfig, GPT
+import tokenizer, transformers
 
 
 
