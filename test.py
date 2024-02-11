@@ -44,7 +44,9 @@ image = torch.tensor(image.numpy()[np.newaxis, ...])
 model_neuron = torch.jit.load( 'resnet50_neuron.pt' )
 
 ## Predict
-results = model_neuron( image )
+results = model(image)
+
+# results = model_neuron( image )
 
 # Get the top 5 results
 top5_idx = results[0].sort()[1][-5:]
