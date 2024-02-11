@@ -8,7 +8,7 @@ from model import GPTConfig, GPT
 
 
 ## Load a pretrained nanoGPT model
-model = GPT.from_pretrained(init_from, dict(dropout=0.0))
+model = models.resnet50(pretrained=True)
 
 seed_text = "Once upon a time, there was a"
 input_ids = tokenizer.encode(seed_text, return_tensors="pt")
